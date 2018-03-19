@@ -48,6 +48,13 @@ limitations under the License.
 #include "public/gemmlowp.h"
 #include "tensorflow/contrib/lite/kernels/internal/types.h"
 
+#if _MSC_VER
+#include <intrin.h>
+inline unsigned int __builtin_clz(unsigned int x) {
+  return __lzcnt(x);
+}
+#endif
+
 namespace tflite {
 
 inline void GetActivationMinMax(FusedActivationFunctionType ac,
