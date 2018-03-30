@@ -82,7 +82,7 @@ if (WIN32)
       CMAKE_CXX_FLAGS_RELWITHDEBINFO
     )
 else()
-    set(PLATFORM_ENV_TIME_SRC ${TENSORFLOW_ROOT_DIR}/tensorflow/core/platform/unix/env_time.cc)
+    set(PLATFORM_ENV_TIME_SRC ${TENSORFLOW_ROOT_DIR}/tensorflow/core/platform/posix/env_time.cc)
 endif (WIN32)
 
 
