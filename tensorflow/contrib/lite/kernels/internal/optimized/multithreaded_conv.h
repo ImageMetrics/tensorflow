@@ -118,9 +118,8 @@ class EigenTensorConvFunctor {
                   const T* filter_data, int filter_height, int filter_width,
                   int filter_count, int stride_rows, int stride_cols,
                   int pad_width, int pad_height, TfLitePadding padding,
-                  T* output_data, int output_height, int output_width) {
-    const Eigen::ThreadPoolDevice& device = GetThreadPoolDevice();
-
+                  T* output_data, int output_height, int output_width,
+                  const Eigen::ThreadPoolDevice& device) {
     const bool is_1x1_kernel = (filter_height == 1 && filter_width == 1 &&
                                 stride_rows == 1 && stride_cols == 1);
     if (is_1x1_kernel) {
@@ -168,7 +167,8 @@ inline void Conv(const float* input_data, const Dims<4>& input_dims,
                  int pad_height, TfLitePadding padding,
                  float output_activation_min, float output_activation_max,
                  float* output_data, const Dims<4>& output_dims,
-                 float* im2col_data, const Dims<4>& im2col_dims) {
+                 float* im2col_data, const Dims<4>& im2col_dims,
+                 const Eigen::ThreadPoolDevice& device) {
   const int batches = MatchingArraySize(input_dims, 3, output_dims, 3);
   const int input_depth = MatchingArraySize(input_dims, 0, filter_dims, 0);
   const int output_depth = MatchingArraySize(filter_dims, 3, output_dims, 0);
@@ -182,7 +182,7 @@ inline void Conv(const float* input_data, const Dims<4>& input_dims,
   conv_functor(input_data, im2col_data, batches, input_height, input_width,
                input_depth, filter_data, filter_height, filter_width,
                output_depth, stride_height, stride_width, pad_height, pad_width,
-               padding, output_data, output_height, output_width);
+               padding, output_data, output_height, output_width, device);
 
   optimized_ops::AddBiasAndEvalActivationFunction(
       bias_data, bias_dims, output_data, output_dims, output_activation_min,
