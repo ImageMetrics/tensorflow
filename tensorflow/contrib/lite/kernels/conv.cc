@@ -69,9 +69,6 @@ struct OpData {
   bool need_hwcn_weights;
   bool have_weights_been_transposed;
   bool need_im2col;
-  Eigen::ThreadPool* tp;
-  tflite::multithreaded_ops::EigenThreadPoolWrapper* thread_pool_wrapper;
-  Eigen::ThreadPoolDevice* device;
 };
 
 void* Init(TfLiteContext* context, const char* buffer, size_t length) {
@@ -85,31 +82,9 @@ void* Init(TfLiteContext* context, const char* buffer, size_t length) {
   return data;
 }
 
-void* Init_Multithread(TfLiteContext* context, const char* buffer, size_t length) {
-  OpData *data = reinterpret_cast<OpData*>(Init(context, buffer, length));
-
-  const int thread_count = 4;
-  data->tp = new Eigen::ThreadPool(thread_count);
-  data->thread_pool_wrapper =
-    new tflite::multithreaded_ops::EigenThreadPoolWrapper(data->tp);
-  data->device =
-    new Eigen::ThreadPoolDevice(data->thread_pool_wrapper, thread_count);
-
-  return data;
-}
-
 void Free(TfLiteContext* context, void* buffer) {
   gemm_support::DecrementUsageCounter(context);
   delete reinterpret_cast<OpData*>(buffer);
-}
-
-void Free_Multithread(TfLiteContext* context, void* buffer) {
-  OpData *data = reinterpret_cast<OpData*>(buffer);
-  delete data->device;
-  delete data->thread_pool_wrapper;
-  delete data->tp;
-
-  Free(context, buffer);
 }
 
 // Naive implementation of transpose for floats. Could be optimized to be more
@@ -393,8 +368,7 @@ void EvalFloat(TfLiteContext* context, TfLiteNode* node,
           data->padding.width, data->padding.height, params->padding,
           output_activation_min, output_activation_max,
           GetTensorData<float>(output), GetTensorDims(output),
-          GetTensorData<float>(im2col), GetTensorDims(im2col),
-          *data->device);
+          GetTensorData<float>(im2col), GetTensorDims(im2col));
       break;
     }
   }
@@ -458,7 +432,7 @@ TfLiteRegistration* Register_CONVOLUTION_GENERIC_OPT() {
 }
 
 TfLiteRegistration* Register_CONVOLUTION_MULTITHREADED_OPT() {
-  static TfLiteRegistration r = {conv::Init_Multithread, conv::Free_Multithread, conv::Prepare,
+  static TfLiteRegistration r = {conv::Init, conv::Free, conv::Prepare,
                                  conv::Eval<conv::kMultithreadOptimized>};
   return &r;
 }

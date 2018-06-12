@@ -56,11 +56,9 @@ class EigenThreadPoolWrapper : public Eigen::ThreadPoolInterface {
 // operations anyway, it shouldn't affect overall performance.
 const Eigen::ThreadPoolDevice& GetThreadPoolDevice() {
   const int thread_count = 4;
-  static Eigen::ThreadPool* tp = new Eigen::ThreadPool(thread_count);
-  static EigenThreadPoolWrapper* thread_pool_wrapper =
-      new EigenThreadPoolWrapper(tp);
-  static Eigen::ThreadPoolDevice* device =
-      new Eigen::ThreadPoolDevice(thread_pool_wrapper, thread_count);
+  static std::shared_ptr<Eigen::ThreadPool> tp(new Eigen::ThreadPool(thread_count));
+  static std::shared_ptr<EigenThreadPoolWrapper> thread_pool_wrapper(new EigenThreadPoolWrapper(tp.get()));
+  static std::shared_ptr<Eigen::ThreadPoolDevice> device(new Eigen::ThreadPoolDevice(thread_pool_wrapper.get(), thread_count));
   return *device;
 }
 
@@ -118,8 +116,9 @@ class EigenTensorConvFunctor {
                   const T* filter_data, int filter_height, int filter_width,
                   int filter_count, int stride_rows, int stride_cols,
                   int pad_width, int pad_height, TfLitePadding padding,
-                  T* output_data, int output_height, int output_width,
-                  const Eigen::ThreadPoolDevice& device) {
+                  T* output_data, int output_height, int output_width) {
+    const Eigen::ThreadPoolDevice& device = GetThreadPoolDevice();
+
     const bool is_1x1_kernel = (filter_height == 1 && filter_width == 1 &&
                                 stride_rows == 1 && stride_cols == 1);
     if (is_1x1_kernel) {
@@ -167,8 +166,7 @@ inline void Conv(const float* input_data, const Dims<4>& input_dims,
                  int pad_height, TfLitePadding padding,
                  float output_activation_min, float output_activation_max,
                  float* output_data, const Dims<4>& output_dims,
-                 float* im2col_data, const Dims<4>& im2col_dims,
-                 const Eigen::ThreadPoolDevice& device) {
+                 float* im2col_data, const Dims<4>& im2col_dims) {
   const int batches = MatchingArraySize(input_dims, 3, output_dims, 3);
   const int input_depth = MatchingArraySize(input_dims, 0, filter_dims, 0);
   const int output_depth = MatchingArraySize(filter_dims, 3, output_dims, 0);
@@ -182,7 +180,7 @@ inline void Conv(const float* input_data, const Dims<4>& input_dims,
   conv_functor(input_data, im2col_data, batches, input_height, input_width,
                input_depth, filter_data, filter_height, filter_width,
                output_depth, stride_height, stride_width, pad_height, pad_width,
-               padding, output_data, output_height, output_width, device);
+               padding, output_data, output_height, output_width);
 
   optimized_ops::AddBiasAndEvalActivationFunction(
       bias_data, bias_dims, output_data, output_dims, output_activation_min,
