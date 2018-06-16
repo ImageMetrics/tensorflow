@@ -56,11 +56,9 @@ class EigenThreadPoolWrapper : public Eigen::ThreadPoolInterface {
 // operations anyway, it shouldn't affect overall performance.
 const Eigen::ThreadPoolDevice& GetThreadPoolDevice() {
   const int thread_count = 4;
-  static Eigen::ThreadPool* tp = new Eigen::ThreadPool(thread_count);
-  static EigenThreadPoolWrapper* thread_pool_wrapper =
-      new EigenThreadPoolWrapper(tp);
-  static Eigen::ThreadPoolDevice* device =
-      new Eigen::ThreadPoolDevice(thread_pool_wrapper, thread_count);
+  static std::shared_ptr<Eigen::ThreadPool> tp(new Eigen::ThreadPool(thread_count));
+  static std::shared_ptr<EigenThreadPoolWrapper> thread_pool_wrapper(new EigenThreadPoolWrapper(tp.get()));
+  static std::shared_ptr<Eigen::ThreadPoolDevice> device(new Eigen::ThreadPoolDevice(thread_pool_wrapper.get(), thread_count));
   return *device;
 }
 
