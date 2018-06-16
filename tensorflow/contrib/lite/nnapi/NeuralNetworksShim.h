@@ -15,7 +15,9 @@ limitations under the License.
 #ifndef NN_API_SHIM_H0
 #define NN_API_SHIM_H0
 
+#ifndef WIN32
 #include <dlfcn.h>
+#endif
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,7 +36,10 @@ limitations under the License.
 inline void* loadLibrary(const char* name) {
   // TODO: change RTLD_LOCAL? Assumes there can be multiple instances of nn
   // api RT
-  void* handle = dlopen(name, RTLD_LAZY | RTLD_LOCAL);
+  void* handle = nullptr;
+#ifndef WIN32
+  handle = dlopen(name, RTLD_LAZY | RTLD_LOCAL);
+#endif
   if (handle == nullptr) {
     NNAPI_LOG("nnapi error: unable to open library %s", name);
   }
@@ -48,9 +53,11 @@ inline void* getLibraryHandle() {
 
 inline void* loadFunction(const char* name) {
   void* fn = nullptr;
+#ifndef WIN32
   if (getLibraryHandle() != nullptr) {
     fn = dlsym(getLibraryHandle(), name);
   }
+#endif
   if (fn == nullptr) {
     NNAPI_LOG("nnapi error: unable to open function %s", name);
   }

@@ -16,10 +16,14 @@ limitations under the License.
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#ifndef WIN32
 #include <sys/mman.h>
+#endif
 #include <sys/stat.h>
 #include <sys/types.h>
+#ifndef WIN32
 #include <unistd.h>
+#endif
 
 #include "tensorflow/contrib/lite/allocation.h"
 #include "tensorflow/contrib/lite/builtin_op_data.h"

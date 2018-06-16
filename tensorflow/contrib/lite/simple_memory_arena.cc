@@ -18,6 +18,7 @@ limitations under the License.
 #include <cstring>
 #include <limits>
 #include <vector>
+#include <algorithm>
 
 namespace {
 

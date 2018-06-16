@@ -15,13 +15,20 @@ limitations under the License.
 
 #include "tensorflow/contrib/lite/nnapi_delegate.h"
 #include <fcntl.h>
+#ifndef WIN32
 #include <sys/mman.h>
+#endif
 #include <sys/stat.h>
 #include <sys/types.h>
 #include "tensorflow/contrib/lite/builtin_op_data.h"
 #include "tensorflow/contrib/lite/error_reporter.h"
 #include "tensorflow/contrib/lite/model.h"
 #include "tensorflow/contrib/lite/nnapi/NeuralNetworksShim.h"
+
+#ifdef WIN32
+static constexpr void* MAP_FAILED = nullptr;
+#define PROT_READ (0x1)
+#endif
 
 namespace tflite {
 
@@ -145,7 +152,7 @@ void AddOpsAndParams(tflite::Interpreter* interpreter,
 
     auto add_scalar_int32 = [&nn_model, &augmented_inputs,
                              &next_id](int value) {
-      ANeuralNetworksOperandType operand_type{.type = ANEURALNETWORKS_INT32};
+      ANeuralNetworksOperandType operand_type{ANEURALNETWORKS_INT32};
       CHECK_NN(ANeuralNetworksModel_addOperand(nn_model, &operand_type))
       CHECK_NN(ANeuralNetworksModel_setOperandValue(nn_model, next_id, &value,
                                                     sizeof(int32_t)))
@@ -154,7 +161,7 @@ void AddOpsAndParams(tflite::Interpreter* interpreter,
 
     auto add_scalar_float32 = [&nn_model, &augmented_inputs,
                                &next_id](float value) {
-      ANeuralNetworksOperandType operand_type{.type = ANEURALNETWORKS_FLOAT32};
+      ANeuralNetworksOperandType operand_type{ANEURALNETWORKS_FLOAT32};
       CHECK_NN(ANeuralNetworksModel_addOperand(nn_model, &operand_type))
       CHECK_NN(ANeuralNetworksModel_setOperandValue(nn_model, next_id, &value,
                                                     sizeof(float)))

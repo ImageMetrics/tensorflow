@@ -20,6 +20,10 @@ limitations under the License.
 
 #include "third_party/fft2d/fft.h"
 
+#ifdef WIN32
+typedef unsigned int uint;
+#endif
+
 namespace tflite {
 namespace internal {
 
