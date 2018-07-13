@@ -25,6 +25,22 @@ limitations under the License.
 
 namespace tflite {
 namespace tensor_utils {
+namespace {
+
+// Allocates, at least, size bytes of uninitialized storage whose alignment is
+// specified by alignment. The size parameter must be an integral multiple of
+// alignment.
+// Caller is responsible by freeing the allocated memory by calling free on
+// the passed freeing_buffer pointer.
+void* aligned_alloc(size_t alignment, size_t size, void** freeing_buffer) {
+  *freeing_buffer = malloc(size + alignment);
+  const size_t offset = ((uintptr_t)*freeing_buffer) % alignment;  // NOLINT
+  return offset == 0
+             ? *freeing_buffer
+             : ((char*)*freeing_buffer + (alignment - offset));  // NOLINT
+}
+
+}  // namespace
 
 void NeonMatrixBatchVectorMultiplyAccumulate(const float* matrix, int m_rows,
                                              int m_cols, const float* vector,
