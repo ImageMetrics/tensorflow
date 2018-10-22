@@ -9,7 +9,7 @@ macro(configure_msvc_runtime)
   if(MSVC)
     # Default to statically-linked runtime.
     if("${MSVC_RUNTIME}" STREQUAL "")
-      set(MSVC_RUNTIME "static")
+      set(MSVC_RUNTIME "dynamic")
     endif()
     # Set compiler options.
     set(variables
@@ -65,7 +65,6 @@ set(TENSORFLOW_LITE_FFT2D_DIR "${TENSORFLOW_LITE_DOWNLOADED_DEPENDENCIES_DIR}/ff
 if (WIN32)
     # Set C++14 as standard for the whole project
     set(CMAKE_CXX_STANDARD 14)
-    set(PLATFORM_ENV_TIME_SRC ${TENSORFLOW_ROOT_DIR}/tensorflow/core/platform/windows/env_time.cc)
     configure_msvc_runtime()
     set(variables
       CMAKE_C_FLAGS_DEBUG
