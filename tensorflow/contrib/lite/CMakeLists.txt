@@ -97,6 +97,16 @@ else()
         )
 endif (ANDROID)
 
+if (WIN32)
+    SET (MMAP_SOURCE
+        ${TENSORFLOW_LITE_ROOT_DIR}/mmap_allocation_disabled.cc
+        )
+else()
+    SET (MMAP_SOURCE
+        ${TENSORFLOW_LITE_ROOT_DIR}/mmap_allocation.cc
+        )
+endif (WIN32)
+
 add_definitions(
   -DFARMHASH_NO_CXX_STRING
   -DNDEBUG)
@@ -202,7 +212,7 @@ add_library(tensorflow-lite STATIC
     ${TENSORFLOW_LITE_ROOT_DIR}/error_reporter.cc
     ${TENSORFLOW_LITE_ROOT_DIR}/graph_info.cc
     ${TENSORFLOW_LITE_ROOT_DIR}/interpreter.cc
-    ${TENSORFLOW_LITE_ROOT_DIR}/mmap_allocation.cc
+    ${MMAP_SOURCE}
     ${TENSORFLOW_LITE_ROOT_DIR}/model.cc
     ${NNAPI_SOURCE}
     ${TENSORFLOW_LITE_ROOT_DIR}/op_resolver.cc
