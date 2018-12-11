@@ -164,7 +164,7 @@ class Interpreter {
   int tensors_size() const { return context_.tensors_size; }
 
   // Return the number of ops in the model.
-  int nodes_size() const { return nodes_and_registration_.size(); }
+  int nodes_size() const { return (int)nodes_and_registration_.size(); }
 
   // WARNING: Experimental interface, subject to change
   const std::vector<int>& execution_plan() const { return execution_plan_; }

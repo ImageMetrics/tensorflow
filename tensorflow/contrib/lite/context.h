@@ -42,6 +42,8 @@ typedef enum { kTfLiteOk = 0, kTfLiteError = 1 } TfLiteStatus;
 
 // Fixed size list of integers. Used for dimensions and inputs/outputs tensor
 // indices
+#pragma warning(push)
+#pragma warning(disable : 4200)
 typedef struct {
   int size;
 // gcc 6.1+ have a bug where flexible members aren't properly handled
@@ -53,6 +55,7 @@ typedef struct {
   int data[];
 #endif
 } TfLiteIntArray;
+#pragma warning(pop)
 
 // Create a array of a given `size` (uninitialized entries).
 // This returns a pointer, that you must free using TfLiteIntArrayFree().
