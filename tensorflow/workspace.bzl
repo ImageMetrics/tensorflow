@@ -179,8 +179,8 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
   tf_http_archive(
       name = "gemmlowp",
       urls = [
+          "https://github.com/google/gemmlowp/archive/1490d29df3cbe8374892c8e0333075d8943435d8.zip",
           "https://mirror.bazel.build/github.com/google/gemmlowp/archive/010bb3e71a26ca1d0884a167081d092b43563996.zip",
-          "https://github.com/google/gemmlowp/archive/010bb3e71a26ca1d0884a167081d092b43563996.zip",
       ],
       sha256 = "dd2557072bde12141419cb8320a9c25e6ec41a8ae53c2ac78c076a347bb46d9d",
       strip_prefix = "gemmlowp-010bb3e71a26ca1d0884a167081d092b43563996",
