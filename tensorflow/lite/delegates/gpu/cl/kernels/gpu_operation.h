@@ -158,6 +158,8 @@ class GPUOperation {
   Arguments args_;
   std::string code_;
   int3 work_group_size_ = int3(8, 4, 1);
+  int3 work_groups_count_ = int3(0, 0, 0);
+  
   std::vector<CompilerOptions> compiler_options_;
   // not applicable to elementwise
   TensorToGrid tensor_to_grid_ = TensorToGrid::kCustom;
@@ -191,7 +193,6 @@ class GPUOperation {
   std::vector<std::string> dst_tensors_names_;
 
  private:
-  int3 work_groups_count_ = int3(0, 0, 0);
   int linkable_count_ = 0;
   std::string elementwise_code_;  // temporary, used during op construction
 };

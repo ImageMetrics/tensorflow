@@ -93,6 +93,18 @@ class Delegate {
     return options_.max_delegated_partitions;
   }
   int num_delegate_kernels() const { return num_delegate_kernels_; }
+  
+  void SetBinaryCacheData(const std::vector<uint8_t>& data) { binary_cache_ = data ;}
+
+  absl::Span<const uint8_t> GetSerializedBinaryCache() {
+    return binary_cache_;
+  }
+
+  void SetOpenCLTuneResultCacheData(const std::vector<uint8_t>& data) { opencl_tune_result_cache_ = data ;}
+
+  absl::Span<const uint8_t> GetSerializedOpenCLTuneResultCache() {
+    return opencl_tune_result_cache_;
+  }
 
  private:
   TfLiteDelegate delegate_ = {
@@ -106,6 +118,8 @@ class Delegate {
 
   TfLiteGpuDelegateOptionsV2 options_;
   int num_delegate_kernels_ = 0;
+  std::vector<uint8_t> binary_cache_;
+  std::vector<uint8_t> opencl_tune_result_cache_;
 
   friend class DelegateKernel;
 };
@@ -226,6 +240,22 @@ class DelegateKernel {
     return absl::OkStatus();
   }
 
+  std::vector<uint8_t> GetBinaryCacheData() const {
+    if (cl_environment_)
+    {
+      return cl_environment_->GetSerializedBinaryCache();
+    }
+    return std::vector<uint8_t>();
+  }
+
+  std::vector<uint8_t> GetOpenCLTuneResultCacheData() const {
+    if (cl_environment_)
+    {
+      return cl_environment_->GetSerializedOpenCLTuneResultCache();
+    }
+    return std::vector<uint8_t>();
+  }
+
  private:
   absl::Status SetInputsAndOutputs(TfLiteContext* context) {
     for (int i = 0; i < input_indices_.size(); ++i) {
@@ -289,9 +319,18 @@ class DelegateKernel {
     *graph_is_destroyed = false;
     cl::InferenceEnvironmentOptions env_options;
     cl::InferenceEnvironmentProperties properties;
+
+    auto delegate_options = delegate_->options();
+    env_options.serialized_binary_cache = {
+        delegate_options.serialized_binary_cache_data,
+        delegate_options.serialized_binary_cache_size};
+
+    env_options.serialized_opencl_tune_result_cache = {
+        delegate_options.serialized_opencl_tune_result_cache_data,
+        delegate_options.serialized_opencl_tune_result_cache_size};
+
     RETURN_IF_ERROR(cl::NewInferenceEnvironment(env_options, &cl_environment_,
                                                 &properties));
-    auto delegate_options = delegate_->options();
     cl::InferenceOptions options;
     // If is_precision_loss_allowed == -1, then just use priorities instead
     // of paying attention to is_precision_loss_allowed value.
@@ -313,6 +352,7 @@ class DelegateKernel {
         options, std::move(*graph), builder));
     TFLITE_LOG_PROD_ONCE(tflite::TFLITE_LOG_INFO,
                          "Initialized OpenCL-based API.");
+
     return absl::OkStatus();
   }
 
@@ -353,6 +393,7 @@ class DelegateKernel {
   absl::flat_hash_map<int, int> quant_conversion_map_;
   std::thread::id thread_id_prepare_;  // thread id used for Prapare()
   bool enforce_same_thread_ = false;   // flag to enforce same thread for Invoke
+  std::vector<uint8_t> binary_cache_;
 };
 
 inline DelegateKernel* GetDelegateKernel(TfLiteNode* node) {
@@ -375,6 +416,8 @@ TfLiteStatus DelegatePrepare(TfLiteContext* context, TfLiteDelegate* delegate) {
         auto gpu_delegate_kernel =
             absl::make_unique<DelegateKernel>(gpu_delegate);
         const auto status = gpu_delegate_kernel->Prepare(context, params);
+        gpu_delegate->SetBinaryCacheData(gpu_delegate_kernel->GetBinaryCacheData());
+        gpu_delegate->SetOpenCLTuneResultCacheData(gpu_delegate_kernel->GetOpenCLTuneResultCacheData());
         if (!status.ok()) {
           TF_LITE_KERNEL_LOG(context, "TfLiteGpuDelegate Init: %s",
                              std::string(status.message()).c_str());
@@ -402,6 +445,7 @@ TfLiteStatus DelegatePrepare(TfLiteContext* context, TfLiteDelegate* delegate) {
                              std::string(status.message()).c_str());
           return kTfLiteError;
         }
+
         // TODO(akulik): tflite tensors are not allocated here either. It would
         // be good to set inputs and outputs only once here instead of setting
         // them every time in .invoke.
@@ -427,11 +471,14 @@ TfLiteStatus DelegatePrepare(TfLiteContext* context, TfLiteDelegate* delegate) {
   TfLiteIntArray* ops_to_replace =
       GetOpsToReplace(context, gpu_delegate->IsQuantOpsAllowed(),
                       gpu_delegate->MaxDelegatedPartitions());
+
   const auto status = context->ReplaceNodeSubsetsWithDelegateKernels(
       context, kRegistration, ops_to_replace, delegate);
+    
   TFLITE_LOG_PROD(TFLITE_LOG_INFO, "Created %d GPU delegate kernels.",
                   gpu_delegate->num_delegate_kernels());
   TfLiteIntArrayFree(ops_to_replace);
+
   return status;
 }
 
@@ -450,6 +497,10 @@ TfLiteGpuDelegateOptionsV2 TfLiteGpuDelegateOptionsV2Default() {
       .inference_priority3 = TFLITE_GPU_INFERENCE_PRIORITY_AUTO,
       .experimental_flags = TFLITE_GPU_EXPERIMENTAL_FLAGS_ENABLE_QUANT,
       .max_delegated_partitions = 1,
+      .serialized_binary_cache_data = nullptr,
+      .serialized_binary_cache_size = 0,
+      .serialized_opencl_tune_result_cache_data = nullptr,
+      .serialized_opencl_tune_result_cache_size = 0,
   };
   return options;
 }
@@ -464,4 +515,40 @@ TfLiteDelegate* TfLiteGpuDelegateV2Create(
 
 void TfLiteGpuDelegateV2Delete(TfLiteDelegate* delegate) {
   delete tflite::gpu::GetDelegate(delegate);
+}
+
+bool TfLiteGpuDelegateV2GetSerializedBinaryCache(TfLiteDelegate* delegate,
+                                               size_t* size,
+                                               const uint8_t** data) {
+  *size = 0;
+  auto* gpu_delegate = tflite::gpu::GetDelegate(delegate);
+  if (!gpu_delegate) {
+    return false;
+  }
+
+  auto cache = gpu_delegate->GetSerializedBinaryCache();
+  if (cache.empty()) {
+    return false;
+  }
+  *size = cache.size();
+  *data = cache.data();
+  return true;
+}
+
+bool TfLiteGpuDelegateV2GetSerializedOpenCLTuneResultCache(TfLiteDelegate* delegate,
+                                               size_t* size,
+                                               const uint8_t** data) {
+  *size = 0;
+  auto* gpu_delegate = tflite::gpu::GetDelegate(delegate);
+  if (!gpu_delegate) {
+    return false;
+  }
+
+  auto cache = gpu_delegate->GetSerializedOpenCLTuneResultCache();
+  if (cache.empty()) {
+    return false;
+  }
+  *size = cache.size();
+  *data = cache.data();
+  return true;
 }

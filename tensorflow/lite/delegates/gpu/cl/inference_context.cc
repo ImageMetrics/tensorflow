@@ -616,8 +616,22 @@ absl::Status InferenceContext::Compile(
 
 absl::Status InferenceContext::Tune(const TuningParameters& tuning_parameters) {
   for (auto& node : nodes_) {
-    RETURN_IF_ERROR(node.operation->Tune(tuning_parameters));
+    auto it = tune_result_.tune_map.find(node.name);
+    if (it == tune_result_.tune_map.end())
+    {
+      RETURN_IF_ERROR(node.operation->Tune(tuning_parameters));
+      OpenCLOperatorTune oneTune;
+      oneTune.name = node.name;
+      oneTune.work_group_size = node.operation->work_group_size_;
+      oneTune.work_group_count = node.operation->work_groups_count_;
+      tune_result_.tune_map[node.name] = oneTune;
+    }
+    else {
+      node.operation->work_group_size_ = it->second.work_group_size;
+      node.operation->work_groups_count_ = it->second.work_group_count;
+    }
   }
+
   return absl::OkStatus();
 }
 
@@ -704,6 +718,51 @@ absl::Status InferenceContext::GetOutputTensor(ValueId id,
   result->shape = dst_shape;
   result->data.resize(dst_shape.DimensionsProduct());
   return gpu_tensor.ReadData(queue, result);
+}
+
+void InferenceContext::GetTuneResultData(size_t* size, const uint8_t** data)
+{
+  flatbuffers::FlatBufferBuilder builder(10240);
+  std::vector<flatbuffers::Offset<data::OpenCLOperatorTune>> tuneVector;
+  for(auto& oneTune : tune_result_.tune_map) {
+    auto name = builder.CreateString(oneTune.second.name);
+    auto workGroupSize = data::CreateInt3(builder, oneTune.second.work_group_size.x, oneTune.second.work_group_size.y, oneTune.second.work_group_size.z);
+    auto workGroupCount = data::CreateInt3(builder, oneTune.second.work_group_count.x, oneTune.second.work_group_count.y, oneTune.second.work_group_count.z);
+    auto oneTuneResut = data::CreateOpenCLOperatorTune(builder, name, workGroupSize, workGroupCount);
+    tuneVector.push_back(oneTuneResut);
+  }
+
+  auto nodes = builder.CreateVector(tuneVector);
+  auto tuneResult = data::CreateOpenCLTune(builder, nodes);
+  builder.Finish(tuneResult);
+  *data = builder.GetBufferPointer();
+  *size = builder.GetSize();
+}
+
+absl::Status InferenceContext::AddTuneResultData(absl::Span<const uint8_t> serialized_cache)
+{
+  flatbuffers::Verifier verifier(serialized_cache.data(),
+                                 serialized_cache.size());
+  if (!verifier.VerifyBuffer<data::OpenCLTune>(nullptr)) {
+    return absl::InvalidArgumentError("Serialized opencl tune result is corrupted.");
+  }
+
+  auto tune_result = flatbuffers::GetRoot<data::OpenCLTune>(serialized_cache.data());
+
+  tune_result_.tune_map.clear();
+
+  for (auto one_result : *tune_result->nodes()) {
+    OpenCLOperatorTune operatorTune;
+    operatorTune.name = one_result->name()->str();
+    operatorTune.work_group_size = int3(one_result->work_group_size()->x(),
+                         one_result->work_group_size()->y(),
+                         one_result->work_group_size()->z());
+    operatorTune.work_group_count = int3(one_result->work_group_count()->x(),
+                         one_result->work_group_count()->y(),
+                         one_result->work_group_count()->z());                     
+    tune_result_.tune_map[operatorTune.name] = operatorTune;
+  }
+  return absl::OkStatus();
 }
 
 absl::Status RunGraphTransforms(GraphFloat32* graph) {

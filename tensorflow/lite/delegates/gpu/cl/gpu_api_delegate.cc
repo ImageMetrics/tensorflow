@@ -84,6 +84,8 @@ class Delegate {
       options_.egl_context = EGL_NO_CONTEXT;
       options_.serialized_binary_cache_data = nullptr;
       options_.serialized_binary_cache_size = 0;
+      options_.serialized_opencl_tune_result_cache_data = nullptr;
+      options_.serialized_opencl_tune_result_cache_size = 0;
     }
   }
 
@@ -107,6 +109,9 @@ class Delegate {
     env_options.serialized_binary_cache = {
         options_.serialized_binary_cache_data,
         options_.serialized_binary_cache_size};
+    env_options.serialized_opencl_tune_result_cache = {
+        options_.serialized_opencl_tune_result_cache_data,
+        options_.serialized_opencl_tune_result_cache_size};
     InferenceEnvironmentProperties properties;
     absl::Status status =
         NewInferenceEnvironment(env_options, &environment_, &properties);
@@ -282,6 +287,11 @@ class Delegate {
     return binary_cache_;
   }
 
+  absl::Span<const uint8_t> GetSerializedOpenCLTuneResultCache() {
+    opencl_tune_result_cache_ = environment_->GetSerializedOpenCLTuneResultCache();
+    return opencl_tune_result_cache_;
+  }
+
  private:
   TfLiteDelegate delegate_ = {
       reinterpret_cast<void*>(this),  // .data_
@@ -298,6 +308,7 @@ class Delegate {
   std::vector<int64_t> input_indices_;
   std::vector<int64_t> output_indices_;
   std::vector<uint8_t> binary_cache_;
+  std::vector<uint8_t> opencl_tune_result_cache_;
   std::vector<std::pair<TensorObject, TensorObjectDef>> tensors_;
 };
 
@@ -409,6 +420,23 @@ bool TfLiteGpuDelegateGetSerializedBinaryCache(TfLiteDelegate* delegate,
     return false;
   }
   auto cache = gpu_delegate->GetSerializedBinaryCache();
+  if (cache.empty()) {
+    return false;
+  }
+  *size = cache.size();
+  *data = cache.data();
+  return true;
+}
+
+bool TfLiteGpuDelegateGetSerializedOpenCLTuneResultCache(TfLiteDelegate* delegate,
+                                               size_t* size,
+                                               const uint8_t** data) {
+  *size = 0;
+  auto* gpu_delegate = tflite::gpu::cl::GetDelegate(delegate);
+  if (!gpu_delegate) {
+    return false;
+  }
+  auto cache = gpu_delegate->GetSerializedOpenCLTuneResultCache();
   if (cache.empty()) {
     return false;
   }

@@ -639,6 +639,11 @@ class InferenceBuilderImpl : public InferenceBuilder {
     } else if (options.usage == InferenceUsage::SUSTAINED_SPEED) {
       create_info.hints.Add(ModelHints::kAllowSpecialKernels);
     }
+
+    std::vector<uint8_t> tune_result_cache;
+    environment_->GetSerializedOpenCLTuneResultCache(&tune_result_cache);
+    context_->AddTuneResultData(absl::MakeSpan(tune_result_cache.data(), tune_result_cache.size()));
+
     RETURN_IF_ERROR(context_->InitFromGraph(create_info, graph, environment_));
 
 #ifdef CL_DELEGATE_ALLOW_GL
@@ -664,6 +669,10 @@ class InferenceBuilderImpl : public InferenceBuilder {
     context_ = absl::make_unique<InferenceContext>();
     RETURN_IF_ERROR(
         context_->RestoreDeserialized(serialized_model, environment_));
+
+    std::vector<uint8_t> tune_result_cache;
+    environment_->GetSerializedOpenCLTuneResultCache(&tune_result_cache);
+    context_->AddTuneResultData(absl::MakeSpan(tune_result_cache.data(), tune_result_cache.size()));
 
 #ifdef CL_DELEGATE_ALLOW_GL
     if (env_options.IsGlAware() &&
@@ -727,6 +736,12 @@ class InferenceBuilderImpl : public InferenceBuilder {
   }
 
   absl::Status Build(std::unique_ptr<InferenceRunner>* runner) override {
+    // Get CL tune result
+    size_t tune_result_size;
+    const uint8_t *tune_result_data; 
+    context_->GetTuneResultData(&tune_result_size, &tune_result_data);
+    environment_->UpdateSerializedOpenCLTuneResultCache(tune_result_size, tune_result_data);
+
 #ifdef CL_DELEGATE_ALLOW_GL
     if (gl_interop_fabric_ && !HasGlObjects()) {
       // destroy interop layer when there are no GL objects to avoid
@@ -883,6 +898,12 @@ class InferenceEnvironmentImpl : public InferenceEnvironment {
           .IgnoreError();
     }
 
+    if (!options_.serialized_opencl_tune_result_cache.empty()) {
+      // Ignore returned error. Cache is discarded.
+      environment_.AddSerializedOpenCLTuneResultCache(options_.serialized_opencl_tune_result_cache)
+          .IgnoreError();
+    }
+
     RETURN_IF_ERROR(RunGraphTransforms(&model));
     InferenceContext context;
     InferenceContext::CreateInferenceInfo create_info;
@@ -896,6 +917,12 @@ class InferenceEnvironmentImpl : public InferenceEnvironment {
     }
     RETURN_IF_ERROR(context.InitFromGraph(create_info, model, &environment_,
                                           serialized_model));
+
+    // Get CL tune result
+    size_t tune_result_size;
+    const uint8_t *tune_result_data; 
+    context.GetTuneResultData(&tune_result_size, &tune_result_data);
+    environment_.UpdateSerializedOpenCLTuneResultCache(tune_result_size, tune_result_data);
     return absl::OkStatus();
   }
 
@@ -913,6 +940,12 @@ class InferenceEnvironmentImpl : public InferenceEnvironment {
       environment_.program_cache()
           ->AddSerializedCache(environment_.context(), environment_.device(),
                                options_.serialized_binary_cache)
+          .IgnoreError();
+    }
+
+    if (!options_.serialized_opencl_tune_result_cache.empty()) {
+      // Ignore returned error. Cache is discarded.
+      environment_.AddSerializedOpenCLTuneResultCache(options_.serialized_opencl_tune_result_cache)
           .IgnoreError();
     }
 
@@ -936,17 +969,31 @@ class InferenceEnvironmentImpl : public InferenceEnvironment {
           .IgnoreError();
     }
 
+    if (!options_.serialized_opencl_tune_result_cache.empty()) {
+      // Ignore returned error. Cache is discarded.
+      environment_.AddSerializedOpenCLTuneResultCache(options_.serialized_opencl_tune_result_cache)
+          .IgnoreError();
+    }
+
     auto builder_impl = absl::make_unique<InferenceBuilderImpl>(&environment_);
     RETURN_IF_ERROR(builder_impl->Initialize(options_, serialized_model));
     *builder = std::move(builder_impl);
     return absl::OkStatus();
   }
 
-  std::vector<uint8_t> GetSerializedBinaryCache() const final {
+  std::vector<uint8_t> GetSerializedBinaryCache() const {
     std::vector<uint8_t> data;
     // Is there was a problem, data would be empty.
     environment_.program_cache()
         ->GetSerializedCache(environment_.device(), &data)
+        .IgnoreError();
+    return data;
+  }
+
+  std::vector<uint8_t> GetSerializedOpenCLTuneResultCache() const {
+    std::vector<uint8_t> data;
+    // Is there was a problem, data would be empty.
+    environment_.GetSerializedOpenCLTuneResultCache(&data)
         .IgnoreError();
     return data;
   }

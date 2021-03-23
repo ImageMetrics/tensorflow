@@ -67,12 +67,17 @@ class Environment {
   void SetDefaultPerformance() const;
   void SetLowPerformance() const;  // for energy saving
 
+  absl::Status GetSerializedOpenCLTuneResultCache(std::vector<uint8_t>* serialized_cache) const;
+  absl::Status AddSerializedOpenCLTuneResultCache(absl::Span<const uint8_t> serialized_cache);
+  absl::Status UpdateSerializedOpenCLTuneResultCache(const int size, const uint8_t* data);
+
  private:
   CLDevice device_;
   CLContext context_;
   CLCommandQueue queue_;
   ProfilingCommandQueue profiling_queue_;
   ProgramCache program_cache_;
+  std::vector<uint8_t> opencl_tune_result_cache_;
 };
 
 TensorStorageType GetFastestStorageType(const DeviceInfo& gpu_info);

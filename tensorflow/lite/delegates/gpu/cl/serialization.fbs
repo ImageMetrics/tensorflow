@@ -261,6 +261,16 @@ table PairOfValueIds {
   second:int32;
 }
 
+table OpenCLOperatorTune {
+  name:string;
+  work_group_size:Int3;
+  work_group_count:Int3;
+}
+
+table OpenCLTune {
+  nodes:[OpenCLOperatorTune];
+}
+
 table InferenceContext {
   need_flush:bool;
   flush_periodically:bool;
@@ -273,6 +283,7 @@ table InferenceContext {
   input_ids:[int32];
   variable_ids_and_refs:[PairOfValueIds];
   output_ids:[int32];
+  tune_result:OpenCLTune;
 }
 
 root_type InferenceContext;
