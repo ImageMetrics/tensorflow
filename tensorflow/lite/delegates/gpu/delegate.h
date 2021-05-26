@@ -101,6 +101,16 @@ typedef struct {
   // This limits the maximum number of partitions to be delegated. By default,
   // it's set to 1 in TfLiteGpuDelegateOptionsV2Default().
   int32_t max_delegated_partitions;
+
+  // [Optional]
+  // Contains data returned from TfLiteGpuDelegateGetSerializedBinaryCache call.
+  // Invalid or incompatible data will be discarded. Compiled binary may become
+  // incompatible when GPU driver is updated.
+  const uint8_t* serialized_binary_cache_data;
+  size_t serialized_binary_cache_size;
+
+  const uint8_t* serialized_opencl_tune_result_cache_data;
+  size_t serialized_opencl_tune_result_cache_size;
 } TfLiteGpuDelegateOptionsV2;
 
 // Populates TfLiteGpuDelegateOptionsV2 as follows:
@@ -125,6 +135,22 @@ TFL_CAPI_EXPORT TfLiteDelegate* TfLiteGpuDelegateV2Create(
 
 // Destroys a delegate created with `TfLiteGpuDelegateV2Create` call.
 TFL_CAPI_EXPORT void TfLiteGpuDelegateV2Delete(TfLiteDelegate* delegate);
+
+// Returns opaque binary blob that contains a collection of cached OpenCL
+// binaries. Returned data could be re-used later to speed up initialization
+// time when new delegate is created for the same model.
+// Returned data is valid only if used on the same device, otherwise it will
+// not be compatible and will be discarded.
+TFL_CAPI_EXPORT bool TfLiteGpuDelegateV2GetSerializedBinaryCache(
+    TfLiteDelegate* delegate, size_t* size, const uint8_t** data);
+
+// Returns opaque binary blob that contains a collection of cached OpenCL
+// tune result binaries. Returned data could be re-used later to speed up initialization
+// time when new delegate is created for the same model.
+// Returned data is valid only if used on the same device, otherwise it will
+// not be compatible and will be discarded.
+TFL_CAPI_EXPORT bool TfLiteGpuDelegateV2GetSerializedOpenCLTuneResultCache(
+    TfLiteDelegate* delegate, size_t* size, const uint8_t** data);
 
 #ifdef __cplusplus
 }

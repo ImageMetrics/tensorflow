@@ -20,7 +20,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/../../../.."
 
 DOWNLOADS_DIR=tensorflow/lite/tools/make/downloads
-BZL_FILE_PATH=tensorflow/tensorflow.bzl
+BZL_FILE_PATH=tensorflow/workspace2.bzl
 
 if [[ "${OSTYPE}" == "darwin"* ]]; then
   function sha256sum() { shasum -a 256 "$@" ; }
@@ -49,7 +49,7 @@ ABSL_WORKSPACE_BZL_PATH="third_party/absl/workspace.bzl"
 ABSL_COMMIT="$(grep -oP 'ABSL_COMMIT = "\K[0-9a-f]{40}' "${ABSL_WORKSPACE_BZL_PATH}")"
 ABSL_URL="https://storage.googleapis.com/mirror.tensorflow.org/github.com/abseil/abseil-cpp/archive/"${ABSL_COMMIT}".tar.gz"
 ABSL_SHA="$(grep -oP 'ABSL_SHA256 = "\K[0-9a-f]{64}' "${ABSL_WORKSPACE_BZL_PATH}")"
-NEON_2_SSE_URL="https://github.com/intel/ARM_NEON_2_x86_SSE/archive/master.zip"
+NEON_2_SSE_URL=$(grep -o 'https://github.com/intel/ARM_NEON_2_x86_SSE/archive/.*tar.gz' "${BZL_FILE_PATH}" | head -n1)
 FARMHASH_WORKSPACE_BZL_PATH="third_party/farmhash/workspace.bzl"
 FARMHASH_COMMIT="$(grep -oP 'FARMHASH_COMMIT = "\K[0-9a-f]{40}' "${FARMHASH_WORKSPACE_BZL_PATH}")"
 FARMHASH_URL="https://storage.googleapis.com/mirror.tensorflow.org/github.com/google/farmhash/archive/"${FARMHASH_COMMIT}".tar.gz"
@@ -60,6 +60,19 @@ FFT2D_URL="https://storage.googleapis.com/mirror.tensorflow.org/www.kurims.kyoto
 FP16_URL="https://github.com/Maratyszcza/FP16/archive/febbb1c163726b5db24bed55cc9dc42529068997.zip"
 FFT2D_SHA="ada7e99087c4ed477bfdf11413f2ba8db8a840ba9bbf8ac94f4f3972e2a7cec9"
 CPUINFO_URL="https://github.com/pytorch/cpuinfo/archive/c2092219e7c874783a00a62edb94ddc672f57ab3.zip"
+OPENCL_HEADERS_URL="https://github.com/KhronosGroup/OpenCL-Headers/archive/0d5f18c6e7196863bc1557a693f1509adfcee056.tar.gz"
+XNNPACK_URL="$(grep -o 'https://github.com/google/XNNPACK/archive/.*zip' "${BZL_FILE_PATH}" | head -n1)"
+PTHREADPOOL_URL="$(grep -o 'https://github.com/Maratyszcza/pthreadpool/archive/.*zip' "${BZL_FILE_PATH}" | head -n1)"
+HEXAGON_NN_URL="https://storage.googleapis.com/mirror.tensorflow.org/storage.cloud.google.com/download.tensorflow.org/tflite/hexagon_nn_headers_v1.20.0.0.tgz"
+
+HEXAGON_NN_SKEL_URL="https://imagemetricspublic.s3-us-west-1.amazonaws.com/thirdparty/tflite_hexagon_nn_skel_v1.20.0.1.run"
+mkdir -p "${DOWNLOADS_DIR}"
+HEXAGON_NN_SKEL_PATH="${DOWNLOADS_DIR}/$(basename ${HEXAGON_NN_SKEL_URL})"
+curl -Lo ${HEXAGON_NN_SKEL_PATH} ${HEXAGON_NN_SKEL_URL}
+chmod +x ${HEXAGON_NN_SKEL_PATH}
+eval ${HEXAGON_NN_SKEL_PATH} --quiet --noexec --nox11
+mv hexagon_nn_skel_v1.20.0.1 ${DOWNLOADS_DIR}
+
 CPUINFO_SHA="ea56c399a4f6ca5f749e71acb6a7bfdc653eb65d8f658cb2e414a2fcdca1fe8b"
 # TODO(petewarden): Some new code in Eigen triggers a clang bug with iOS arm64,
 #                   so work around it by patching the source.
@@ -126,6 +139,10 @@ download_and_extract "${FLATBUFFERS_URL}" "${DOWNLOADS_DIR}/flatbuffers" "${FLAT
 download_and_extract "${FFT2D_URL}" "${DOWNLOADS_DIR}/fft2d" "${FFT2D_SHA}"
 download_and_extract "${FP16_URL}" "${DOWNLOADS_DIR}/fp16"
 download_and_extract "${CPUINFO_URL}" "${DOWNLOADS_DIR}/cpuinfo"
+download_and_extract "${OPENCL_HEADERS_URL}" "${DOWNLOADS_DIR}/opencl"
+download_and_extract "${XNNPACK_URL}" "${DOWNLOADS_DIR}/XNNPACK"
+download_and_extract "${PTHREADPOOL_URL}" "${DOWNLOADS_DIR}/pthreadpool"
+download_and_extract "${HEXAGON_NN_URL}" "${DOWNLOADS_DIR}/hexagon_nn/hexagon"
 
 replace_by_sed 's#static uint32x4_t p4ui_CONJ_XOR = vld1q_u32( conj_XOR_DATA );#static uint32x4_t p4ui_CONJ_XOR; // = vld1q_u32( conj_XOR_DATA ); - Removed by script#' \
   "${DOWNLOADS_DIR}/eigen/Eigen/src/Core/arch/NEON/Complex.h"

@@ -58,6 +58,16 @@ struct CLNode {
   CLNode& operator=(const CLNode&) = delete;
 };
 
+struct OpenCLOperatorTune {
+  std::string name;
+  int3 work_group_size;
+  int3 work_group_count;
+};
+
+struct OpenCLTune {
+  std::map<std::string, OpenCLOperatorTune> tune_map;
+};
+
 class InferenceContext {
  public:
   struct CreateInferenceInfo {
@@ -100,6 +110,11 @@ class InferenceContext {
 
   absl::Status RestoreDeserialized(
       const absl::Span<const uint8_t> serialized_model, Environment* env);
+
+  // Get CL tune result
+  void GetTuneResultData(size_t* size, const uint8_t** data);
+  // Set CL tune result
+  absl::Status AddTuneResultData(absl::Span<const uint8_t> serialized_cache);
 
  private:
   enum class TensorMemoryType { kStrongShape, kBuffer, kVariable, kConst };
@@ -164,6 +179,9 @@ class InferenceContext {
   //  anywhere.
   std::vector<CLNode> nodes_;
 
+  // ImageMetrics added tune result cache
+  OpenCLTune tune_result_;
+  
   struct DummyTensor {
     BHWC shape;
     TensorDescriptor descriptor;

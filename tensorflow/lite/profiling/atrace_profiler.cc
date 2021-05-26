@@ -14,7 +14,10 @@ limitations under the License.
 ==============================================================================*/
 #include "tensorflow/lite/profiling/atrace_profiler.h"
 
+#if defined(_WIN32)
+#else
 #include <dlfcn.h>
+#endif
 #if defined(__ANDROID__)
 #include <sys/system_properties.h>
 #endif
@@ -34,6 +37,7 @@ class ATraceProfiler : public tflite::Profiler {
   using FpEndSection = std::add_pointer<void()>::type;
 
   ATraceProfiler() {
+#if !defined(_WIN32)
     handle_ = dlopen("libandroid.so", RTLD_NOW | RTLD_LOCAL);
     if (handle_) {
       // Use dlsym() to prevent crashes on devices running Android 5.1
@@ -51,12 +55,15 @@ class ATraceProfiler : public tflite::Profiler {
         handle_ = nullptr;
       }
     }
+#endif
   }
 
   ~ATraceProfiler() override {
+#if !defined(_WIN32)
     if (handle_) {
       dlclose(handle_);
     }
+#endif
   }
 
   uint32_t BeginEvent(const char* tag, EventType event_type,

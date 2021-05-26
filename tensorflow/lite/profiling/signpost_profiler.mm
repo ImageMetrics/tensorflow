@@ -41,7 +41,7 @@ class SignpostProfiler : public tflite::Profiler {
 
   ~SignpostProfiler() override {
     if (log_) {
-      os_release(log_);
+      //os_release(log_);
     }
   }
 

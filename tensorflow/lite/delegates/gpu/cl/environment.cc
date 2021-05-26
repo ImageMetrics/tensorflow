@@ -184,6 +184,31 @@ bool Environment::IsSupported(TensorStorageType storage_type) const {
   return IsGpuSupportsStorageType(device_.GetInfo(), storage_type);
 }
 
+absl::Status Environment::GetSerializedOpenCLTuneResultCache(
+    std::vector<uint8_t>* serialized_cache) const {
+  size_t next_element = serialized_cache->size();
+  serialized_cache->resize(serialized_cache->size() + opencl_tune_result_cache_.size());
+  std::memcpy(&(*serialized_cache)[next_element], &opencl_tune_result_cache_[0],
+              opencl_tune_result_cache_.size());
+  return absl::OkStatus();
+}
+
+absl::Status Environment::AddSerializedOpenCLTuneResultCache(absl::Span<const uint8_t> serialized_cache) {
+  opencl_tune_result_cache_.clear();
+  size_t next_element = opencl_tune_result_cache_.size();
+  opencl_tune_result_cache_.resize(opencl_tune_result_cache_.size() + serialized_cache.size());
+  std::memcpy(&opencl_tune_result_cache_[next_element], serialized_cache.data(), serialized_cache.size());
+  return absl::OkStatus();
+}
+
+absl::Status Environment::UpdateSerializedOpenCLTuneResultCache(const int size, const uint8_t* data) {
+  opencl_tune_result_cache_.clear();
+  size_t next_element = opencl_tune_result_cache_.size();
+  opencl_tune_result_cache_.resize(opencl_tune_result_cache_.size() + size);
+  std::memcpy(&opencl_tune_result_cache_[next_element], data, size);
+  return absl::OkStatus();
+}
+
 TensorStorageType GetFastestStorageType(const GpuInfo& gpu_info) {
   if (gpu_info.IsAdreno()) {
     if (gpu_info.adreno_info.IsAdreno6xxOrHigher()) {

@@ -104,6 +104,7 @@ class InferenceEnvironment {
   // Returned data is valid only if used on the same device, otherwise it will
   // not be compatible and will be discarded.
   virtual std::vector<uint8_t> GetSerializedBinaryCache() const = 0;
+  virtual std::vector<uint8_t> GetSerializedOpenCLTuneResultCache() const = 0;
 };
 
 struct InferenceEnvironmentOptions {
@@ -127,6 +128,8 @@ struct InferenceEnvironmentOptions {
   // Invalid or incompatible data will be discarded. Compiled binary may become
   // incompatible when GPU driver is updated.
   absl::Span<const uint8_t> serialized_binary_cache;
+
+  absl::Span<const uint8_t> serialized_opencl_tune_result_cache;
 
   bool IsGlAware() const {
     return egl_context != EGL_NO_CONTEXT && egl_display != EGL_NO_DISPLAY;

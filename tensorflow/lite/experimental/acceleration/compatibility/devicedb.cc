@@ -27,7 +27,7 @@ namespace {
 std::vector<const DeviceDecisionTreeEdge*> Find(
     const DeviceDecisionTreeNode* root, const std::string& value) {
   std::vector<const DeviceDecisionTreeEdge*> found;
-  if (root->comparison() == Comparison_EQUAL) {
+  if (root->comparison() == Comparison::EQUAL) {
     // Exact match.
     const DeviceDecisionTreeEdge* possible =
         root->items()->LookupByKey(value.c_str());

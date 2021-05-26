@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-include "tensorflow/lite/delegates/gpu/common/task/serialization_base.fbs";
+include "../common/task/serialization_base.fbs";
 
 namespace tflite.gpu.cl.data;
 
@@ -33,6 +33,16 @@ table PairOfValueIds {
   second:int32;
 }
 
+table OpenCLOperatorTune {
+  name:string;
+  work_group_size:tflite.gpu.data.Int3;
+  work_group_count:tflite.gpu.data.Int3;
+}
+
+table OpenCLTune {
+  nodes:[OpenCLOperatorTune];
+}
+
 table InferenceContext {
   need_flush:bool;
   flush_periodically:bool;
@@ -48,6 +58,7 @@ table InferenceContext {
   output_ids:[int32];
   input_refs:[int64];
   output_refs:[int64];
+  tune_result:OpenCLTune;
 }
 
 root_type InferenceContext;

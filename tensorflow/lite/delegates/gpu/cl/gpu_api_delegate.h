@@ -59,6 +59,9 @@ typedef struct {
   // incompatible when GPU driver is updated.
   const uint8_t* serialized_binary_cache_data;
   size_t serialized_binary_cache_size;
+
+  const uint8_t* serialized_opencl_tune_result_cache_data;
+  size_t serialized_opencl_tune_result_cache_size;
 } TfLiteGpuDelegateOptions_New;
 
 // Creates a new delegate instance that need to be destroyed with
@@ -98,6 +101,9 @@ TFL_CAPI_EXPORT TfLiteStatus TfLiteGpuDelegateBindGlBufferToTensor(
 // Returned data is valid only if used on the same device, otherwise it will
 // not be compatible and will be discarded.
 TFL_CAPI_EXPORT bool TfLiteGpuDelegateGetSerializedBinaryCache(
+    TfLiteDelegate* delegate, size_t* size, const uint8_t** data);
+
+TFL_CAPI_EXPORT bool TfLiteGpuDelegateGetSerializedOpenCLTuneResultCache(
     TfLiteDelegate* delegate, size_t* size, const uint8_t** data);
 
 #ifdef __cplusplus
